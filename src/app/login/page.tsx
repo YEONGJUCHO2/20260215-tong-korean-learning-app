@@ -3,13 +3,14 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/firebase/auth';
 import { Mail, Lock, Eye, EyeOff, Chrome } from 'lucide-react';
 
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirect = searchParams.get('redirect') || '/dashboard';
+    const { signInWithEmail, signInWithGoogle } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -17,29 +18,30 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const supabase = createClient();
-
     const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
-
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) {
-            setError(error.message);
-            setLoading(false);
-        } else {
+        try {
+            await signInWithEmail(email, password);
             router.push(redirect);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Login failed';
+            setError(message.includes('invalid-credential') ? 'Invalid email or password' : message);
+            setLoading(false);
         }
     };
 
     const handleGoogleLogin = async () => {
         setLoading(true);
-        const { error } = await supabase.auth.signInWithOAuth({
-            provider: 'google',
-            options: { redirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}` },
-        });
-        if (error) { setError(error.message); setLoading(false); }
+        try {
+            await signInWithGoogle();
+            router.push(redirect);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Google login failed';
+            setError(message);
+            setLoading(false);
+        }
     };
 
     return (
