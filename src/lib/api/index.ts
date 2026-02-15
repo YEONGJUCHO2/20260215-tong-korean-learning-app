@@ -1,406 +1,373 @@
-import { createClient } from '@/lib/supabase/client';
-import type {
-    Profile, TeacherProfile, StudentProfile, Lesson, Feedback,
-    Review, Conversation, Message, Post, PostComment, Notification,
-    AvatarItem, UserAvatarItem, Badge, UserBadge, TPTransaction,
-    LessonDuration, PostCategory,
-} from '@/lib/types/database';
+import {
+    collection, doc, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc,
+    query, where, orderBy, limit, serverTimestamp, increment, onSnapshot,
+    Timestamp, DocumentData, QueryConstraint,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 
 // ============================================
-// Client singleton
+// PROFILES
 // ============================================
-function supabase() {
-    return createClient();
+export async function getProfile(userId: string) {
+    const snap = await getDoc(doc(db, 'profiles', userId));
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+export async function updateProfile(userId: string, data: Record<string, unknown>) {
+    await updateDoc(doc(db, 'profiles', userId), { ...data, updatedAt: serverTimestamp() });
 }
 
 // ============================================
-// AUTH / PROFILE
+// TEACHER PROFILES
 // ============================================
-export async function getCurrentUser() {
-    const { data: { user } } = await supabase().auth.getUser();
-    return user;
-}
+export async function getTeachers(filters?: { specialty?: string; sort?: string }) {
+    const constraints: QueryConstraint[] = [where('role', '==', 'teacher')];
 
-export async function getProfile(userId: string): Promise<Profile | null> {
-    const { data } = await supabase().from('profiles').select('*').eq('id', userId).single();
-    return data;
-}
+    if (filters?.sort === 'rating') {
+        constraints.push(orderBy('rating', 'desc'));
+    } else if (filters?.sort === 'price_low') {
+        constraints.push(orderBy('price30', 'asc'));
+    } else if (filters?.sort === 'price_high') {
+        constraints.push(orderBy('price30', 'desc'));
+    } else {
+        constraints.push(orderBy('rating', 'desc'));
+    }
 
-export async function updateProfile(userId: string, updates: Partial<Profile>) {
-    const { data, error } = await supabase().from('profiles').update(updates).eq('id', userId).select().single();
-    if (error) throw error;
-    return data;
-}
+    constraints.push(limit(50));
 
-// ============================================
-// TEACHER
-// ============================================
-export async function getTeachers(filters?: { specialty?: string; search?: string; sort?: string }) {
-    let query = supabase()
-        .from('teacher_profiles')
-        .select('*, profiles!inner(*)')
-        .eq('is_active', true);
+    const q = query(collection(db, 'profiles'), ...constraints);
+    const snap = await getDocs(q);
+    let results = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     if (filters?.specialty) {
-        query = query.contains('specialties', [filters.specialty]);
-    }
-    if (filters?.search) {
-        query = query.ilike('profiles.display_name', `%${filters.search}%`);
-    }
-
-    switch (filters?.sort) {
-        case 'rating': query = query.order('rating', { ascending: false }); break;
-        case 'price_low': query = query.order('price_30', { ascending: true }); break;
-        case 'price_high': query = query.order('price_30', { ascending: false }); break;
-        case 'reviews': query = query.order('total_reviews', { ascending: false }); break;
-        default: query = query.order('rating', { ascending: false });
+        results = results.filter((t: DocumentData) =>
+            t.specialties?.includes(filters.specialty)
+        );
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
+    return results;
 }
 
 export async function getTeacher(teacherId: string) {
-    const { data, error } = await supabase()
-        .from('teacher_profiles')
-        .select('*, profiles!inner(*)')
-        .eq('id', teacherId)
-        .single();
-    if (error) throw error;
-    return data;
-}
-
-export async function updateTeacherProfile(teacherId: string, updates: Partial<TeacherProfile>) {
-    const { data, error } = await supabase().from('teacher_profiles').update(updates).eq('id', teacherId).select().single();
-    if (error) throw error;
-    return data;
-}
-
-// ============================================
-// STUDENT
-// ============================================
-export async function getStudentProfile(studentId: string): Promise<StudentProfile | null> {
-    const { data } = await supabase().from('student_profiles').select('*').eq('id', studentId).single();
-    return data;
-}
-
-export async function updateStudentProfile(studentId: string, updates: Partial<StudentProfile>) {
-    const { data, error } = await supabase().from('student_profiles').update(updates).eq('id', studentId).select().single();
-    if (error) throw error;
-    return data;
+    return getProfile(teacherId);
 }
 
 // ============================================
 // LESSONS
 // ============================================
-export async function createLesson(lesson: { student_id: string; teacher_id: string; duration: LessonDuration; price: number; scheduled_at: string; topic?: string }) {
-    const { data, error } = await supabase().from('lessons').insert(lesson).select().single();
-    if (error) throw error;
-    return data as Lesson;
+export async function createLesson(data: {
+    studentId: string; teacherId: string;
+    duration: number; price: number;
+    scheduledAt: Date; topic?: string;
+}) {
+    const ref = await addDoc(collection(db, 'lessons'), {
+        ...data,
+        status: 'pending',
+        scheduledAt: Timestamp.fromDate(data.scheduledAt),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+    return { id: ref.id, ...data };
 }
 
-export async function getUpcomingLessons(userId: string) {
-    const { data, error } = await supabase()
-        .from('lessons')
-        .select('*, student:profiles!lessons_student_id_fkey(*), teacher:profiles!lessons_teacher_id_fkey(*)')
-        .or(`student_id.eq.${userId},teacher_id.eq.${userId}`)
-        .in('status', ['pending', 'confirmed'])
-        .gte('scheduled_at', new Date().toISOString())
-        .order('scheduled_at', { ascending: true })
-        .limit(10);
-    if (error) throw error;
-    return data;
+export async function getUpcomingLessons(userId: string, role: 'student' | 'teacher') {
+    const field = role === 'student' ? 'studentId' : 'teacherId';
+    const q = query(
+        collection(db, 'lessons'),
+        where(field, '==', userId),
+        where('status', 'in', ['pending', 'confirmed']),
+        orderBy('scheduledAt', 'asc'),
+        limit(10)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function updateLessonStatus(lessonId: string, status: string, extraFields?: Record<string, unknown>) {
-    const { data, error } = await supabase().from('lessons').update({ status, ...extraFields }).eq('id', lessonId).select().single();
-    if (error) throw error;
-    return data;
+export async function updateLessonStatus(lessonId: string, status: string, extra?: Record<string, unknown>) {
+    await updateDoc(doc(db, 'lessons', lessonId), { status, ...extra, updatedAt: serverTimestamp() });
 }
 
 // ============================================
 // FEEDBACK
 // ============================================
-export async function createFeedback(feedback: Omit<Feedback, 'id' | 'created_at'>) {
-    const { data, error } = await supabase().from('feedback').insert(feedback).select().single();
-    if (error) throw error;
-    // Award TP
-    await addTP(feedback.teacher_id, feedback.tp_earned, 'Feedback submitted', feedback.lesson_id);
-    return data;
+export async function createFeedback(data: {
+    lessonId: string; teacherId: string; studentId: string;
+    overallRating: number; skills: Record<string, number>;
+    strengths?: string; improvements?: string; notes?: string;
+    homework?: string[]; tpEarned?: number;
+}) {
+    const ref = await addDoc(collection(db, 'feedback'), {
+        ...data,
+        tpEarned: data.tpEarned || 30,
+        createdAt: serverTimestamp(),
+    });
+    // Award TP to teacher
+    await addTP(data.teacherId, data.tpEarned || 30, 'Feedback submitted', data.lessonId);
+    return { id: ref.id };
 }
 
 export async function getFeedbackForStudent(studentId: string) {
-    const { data, error } = await supabase()
-        .from('feedback')
-        .select('*')
-        .eq('student_id', studentId)
-        .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data;
+    const q = query(
+        collection(db, 'feedback'),
+        where('studentId', '==', studentId),
+        orderBy('createdAt', 'desc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 // ============================================
 // REVIEWS
 // ============================================
-export async function createReview(review: { student_id: string; teacher_id: string; lesson_id?: string; rating: number; comment?: string }) {
-    const { data, error } = await supabase().from('reviews').insert(review).select().single();
-    if (error) throw error;
-    await addTP(review.student_id, 20, 'Wrote a review', data.id);
-    return data;
+export async function createReview(data: {
+    studentId: string; teacherId: string;
+    rating: number; comment?: string; lessonId?: string;
+}) {
+    const ref = await addDoc(collection(db, 'reviews'), {
+        ...data,
+        createdAt: serverTimestamp(),
+    });
+    // Update teacher rating (denormalized)
+    const reviewsQ = query(collection(db, 'reviews'), where('teacherId', '==', data.teacherId));
+    const reviewsSnap = await getDocs(reviewsQ);
+    const ratings = reviewsSnap.docs.map(d => d.data().rating as number);
+    const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+    await updateDoc(doc(db, 'profiles', data.teacherId), {
+        rating: Math.round(avg * 10) / 10,
+        totalReviews: ratings.length,
+    });
+    await addTP(data.studentId, 20, 'Wrote a review', ref.id);
+    return { id: ref.id };
 }
 
 export async function getTeacherReviews(teacherId: string) {
-    const { data, error } = await supabase()
-        .from('reviews')
-        .select('*, student:profiles!reviews_student_id_fkey(*)')
-        .eq('teacher_id', teacherId)
-        .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data;
+    const q = query(
+        collection(db, 'reviews'),
+        where('teacherId', '==', teacherId),
+        orderBy('createdAt', 'desc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 // ============================================
 // MESSAGES
 // ============================================
 export async function getConversations(userId: string) {
-    const { data, error } = await supabase()
-        .from('conversations')
-        .select('*')
-        .or(`participant_1.eq.${userId},participant_2.eq.${userId}`)
-        .order('last_message_at', { ascending: false });
-    if (error) throw error;
-    return data;
+    const q = query(
+        collection(db, 'conversations'),
+        where('participants', 'array-contains', userId),
+        orderBy('lastMessageAt', 'desc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function getMessages(conversationId: string) {
-    const { data, error } = await supabase()
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
-    if (error) throw error;
-    return data;
+    const q = query(
+        collection(db, 'conversations', conversationId, 'messages'),
+        orderBy('createdAt', 'asc')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function sendMessage(conversationId: string, senderId: string, content: string) {
-    const { data, error } = await supabase().from('messages').insert({ conversation_id: conversationId, sender_id: senderId, content }).select().single();
-    if (error) throw error;
-    await supabase().from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
-    return data;
+    await addDoc(collection(db, 'conversations', conversationId, 'messages'), {
+        senderId,
+        content,
+        read: false,
+        createdAt: serverTimestamp(),
+    });
+    await updateDoc(doc(db, 'conversations', conversationId), {
+        lastMessageAt: serverTimestamp(),
+        lastMessage: content,
+    });
+}
+
+export function onMessagesSnapshot(conversationId: string, callback: (messages: DocumentData[]) => void) {
+    const q = query(
+        collection(db, 'conversations', conversationId, 'messages'),
+        orderBy('createdAt', 'asc')
+    );
+    return onSnapshot(q, (snap) => {
+        callback(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
 }
 
 // ============================================
 // COMMUNITY POSTS
 // ============================================
-export async function getPosts(category?: PostCategory) {
-    let query = supabase()
-        .from('posts')
-        .select('*, author:profiles!posts_author_id_fkey(*)')
-        .order('created_at', { ascending: false })
-        .limit(30);
-
+export async function getPosts(category?: string) {
+    const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc'), limit(30)];
     if (category && category !== 'All') {
-        query = query.eq('category', category);
+        constraints.unshift(where('category', '==', category));
     }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
+    const q = query(collection(db, 'posts'), ...constraints);
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function createPost(post: { author_id: string; category: PostCategory; title?: string; content: string; image_url?: string }) {
-    const { data, error } = await supabase().from('posts').insert(post).select().single();
-    if (error) throw error;
-    await addTP(post.author_id, 10, 'Community post', data.id);
-    return data;
+export async function createPost(data: {
+    authorId: string; category: string;
+    title?: string; content: string; imageUrl?: string;
+}) {
+    const ref = await addDoc(collection(db, 'posts'), {
+        ...data,
+        likesCount: 0,
+        commentsCount: 0,
+        createdAt: serverTimestamp(),
+    });
+    await addTP(data.authorId, 10, 'Community post', ref.id);
+    return { id: ref.id };
 }
 
 export async function togglePostLike(postId: string, userId: string) {
-    const { data: existing } = await supabase().from('post_likes').select('*').eq('post_id', postId).eq('user_id', userId).single();
-    if (existing) {
-        await supabase().from('post_likes').delete().eq('post_id', postId).eq('user_id', userId);
+    const likeRef = doc(db, 'posts', postId, 'likes', userId);
+    const likeSnap = await getDoc(likeRef);
+    if (likeSnap.exists()) {
+        await deleteDoc(likeRef);
+        await updateDoc(doc(db, 'posts', postId), { likesCount: increment(-1) });
         return false;
     } else {
-        await supabase().from('post_likes').insert({ post_id: postId, user_id: userId });
+        await setDoc(likeRef, { createdAt: serverTimestamp() });
+        await updateDoc(doc(db, 'posts', postId), { likesCount: increment(1) });
         return true;
     }
 }
 
 export async function addComment(postId: string, authorId: string, content: string) {
-    const { data, error } = await supabase().from('post_comments').insert({ post_id: postId, author_id: authorId, content }).select().single();
-    if (error) throw error;
-    return data;
+    await addDoc(collection(db, 'posts', postId, 'comments'), {
+        authorId,
+        content,
+        createdAt: serverTimestamp(),
+    });
+    await updateDoc(doc(db, 'posts', postId), { commentsCount: increment(1) });
 }
 
 // ============================================
 // NOTIFICATIONS
 // ============================================
 export async function getNotifications(userId: string) {
-    const { data, error } = await supabase()
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-    if (error) throw error;
-    return data;
+    const q = query(
+        collection(db, 'notifications'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function markNotificationRead(notifId: string) {
-    await supabase().from('notifications').update({ read: true }).eq('id', notifId);
+    await updateDoc(doc(db, 'notifications', notifId), { read: true });
 }
 
-export async function markAllNotificationsRead(userId: string) {
-    await supabase().from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false);
-}
-
-export async function createNotification(notif: { user_id: string; type: string; title: string; description?: string; action_url?: string }) {
-    const { data, error } = await supabase().from('notifications').insert(notif).select().single();
-    if (error) throw error;
-    return data;
+export async function createNotification(data: {
+    userId: string; type: string;
+    title: string; description?: string; actionUrl?: string;
+}) {
+    await addDoc(collection(db, 'notifications'), {
+        ...data,
+        read: false,
+        createdAt: serverTimestamp(),
+    });
 }
 
 // ============================================
-// AVATAR & SHOP
+// AVATAR ITEMS & SHOP
 // ============================================
 export async function getAvatarItems(category?: string) {
-    let query = supabase().from('avatar_items').select('*').order('price', { ascending: true });
-    if (category) query = query.eq('category', category);
-    const { data, error } = await query;
-    if (error) throw error;
-    return data;
+    const constraints: QueryConstraint[] = [orderBy('price', 'asc')];
+    if (category) constraints.unshift(where('category', '==', category));
+    const q = query(collection(db, 'avatarItems'), ...constraints);
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function getUserItems(userId: string) {
-    const { data, error } = await supabase()
-        .from('user_avatar_items')
-        .select('*, item:avatar_items(*)')
-        .eq('user_id', userId);
-    if (error) throw error;
-    return data;
+    const q = query(collection(db, 'profiles', userId, 'ownedItems'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function purchaseItem(userId: string, itemId: string, price: number) {
-    // Deduct TP
+    await setDoc(doc(db, 'profiles', userId, 'ownedItems', itemId), {
+        equipped: false,
+        purchasedAt: serverTimestamp(),
+    });
     await addTP(userId, -price, 'Avatar item purchased', itemId);
-    // Add item
-    const { data, error } = await supabase().from('user_avatar_items').insert({ user_id: userId, item_id: itemId }).select().single();
-    if (error) throw error;
-    // Update profile TP
-    await supabase().rpc('decrement_tp', { user_id: userId, amount: price });
-    return data;
-}
-
-export async function equipItem(userId: string, itemId: string, category: string) {
-    // Unequip all in same category
-    const { data: currentItems } = await supabase()
-        .from('user_avatar_items')
-        .select('*, item:avatar_items(*)')
-        .eq('user_id', userId)
-        .eq('equipped', true);
-
-    if (currentItems) {
-        for (const ci of currentItems) {
-            if (ci.item?.category === category) {
-                await supabase().from('user_avatar_items').update({ equipped: false }).eq('user_id', userId).eq('item_id', ci.item_id);
-            }
-        }
-    }
-
-    // Equip selected
-    await supabase().from('user_avatar_items').update({ equipped: true }).eq('user_id', userId).eq('item_id', itemId);
 }
 
 // ============================================
 // BADGES
 // ============================================
 export async function getAllBadges() {
-    const { data, error } = await supabase().from('badges').select('*').order('category');
-    if (error) throw error;
-    return data;
+    const snap = await getDocs(query(collection(db, 'badges'), orderBy('category')));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 export async function getUserBadges(userId: string) {
-    const { data, error } = await supabase()
-        .from('user_badges')
-        .select('*, badge:badges(*)')
-        .eq('user_id', userId);
-    if (error) throw error;
-    return data;
+    const snap = await getDocs(collection(db, 'profiles', userId, 'badges'));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function updateBadgeProgress(userId: string, badgeId: string, progress: number) {
-    const { data: badge } = await supabase().from('badges').select('*').eq('id', badgeId).single();
-    const earned = badge ? progress >= badge.condition_value : false;
-
-    await supabase().from('user_badges').upsert({
-        user_id: userId,
-        badge_id: badgeId,
+export async function updateBadgeProgress(userId: string, badgeId: string, progress: number, target: number) {
+    const earned = progress >= target;
+    await setDoc(doc(db, 'profiles', userId, 'badges', badgeId), {
         progress,
         earned,
-        earned_at: earned ? new Date().toISOString() : null,
-    });
-
-    if (earned && badge) {
-        await addTP(userId, badge.xp_reward, `Badge earned: ${badge.name}`, badgeId);
-        await createNotification({
-            user_id: userId,
-            type: 'achievement',
-            title: `Badge Earned: ${badge.name} ${badge.emoji}`,
-            description: `${badge.description} +${badge.xp_reward} XP`,
-            action_url: '/badges',
-        });
-    }
+        earnedAt: earned ? serverTimestamp() : null,
+    }, { merge: true });
 }
 
 // ============================================
 // TP (TONG POINTS)
 // ============================================
 export async function addTP(userId: string, amount: number, reason: string, referenceId?: string) {
-    await supabase().from('tp_transactions').insert({ user_id: userId, amount, reason, reference_id: referenceId });
-    // Update profile TP
-    const { data: profile } = await supabase().from('profiles').select('tp').eq('id', userId).single();
-    if (profile) {
-        await supabase().from('profiles').update({ tp: profile.tp + amount }).eq('id', userId);
-    }
+    await addDoc(collection(db, 'tpTransactions'), {
+        userId,
+        amount,
+        reason,
+        referenceId: referenceId || null,
+        createdAt: serverTimestamp(),
+    });
+    await updateDoc(doc(db, 'profiles', userId), { tp: increment(amount) });
 }
 
 export async function getTPHistory(userId: string) {
-    const { data, error } = await supabase()
-        .from('tp_transactions')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-    if (error) throw error;
-    return data;
+    const q = query(
+        collection(db, 'tpTransactions'),
+        where('userId', '==', userId),
+        orderBy('createdAt', 'desc'),
+        limit(50)
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 // ============================================
 // STREAK
 // ============================================
 export async function updateStreak(userId: string) {
-    const { data: profile } = await supabase().from('profiles').select('streak_days, streak_last_date').eq('id', userId).single();
+    const profile = await getProfile(userId);
     if (!profile) return;
 
     const today = new Date().toISOString().split('T')[0];
     const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
 
-    if (profile.streak_last_date === today) return; // Already counted today
+    if ((profile as DocumentData).streakLastDate === today) return;
 
     let newStreak = 1;
-    if (profile.streak_last_date === yesterday) {
-        newStreak = profile.streak_days + 1;
+    if ((profile as DocumentData).streakLastDate === yesterday) {
+        newStreak = ((profile as DocumentData).streakDays || 0) + 1;
     }
 
-    await supabase().from('profiles').update({ streak_days: newStreak, streak_last_date: today }).eq('id', userId);
+    await updateDoc(doc(db, 'profiles', userId), {
+        streakDays: newStreak,
+        streakLastDate: today,
+    });
 
-    // Check streak badges
-    if (newStreak === 7) {
-        await addTP(userId, 100, '7-day streak bonus');
-    }
-    if (newStreak === 30) {
-        await addTP(userId, 500, '30-day streak bonus');
-    }
+    if (newStreak === 7) await addTP(userId, 100, '7-day streak bonus');
+    if (newStreak === 30) await addTP(userId, 500, '30-day streak bonus');
 }

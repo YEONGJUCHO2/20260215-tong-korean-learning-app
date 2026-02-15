@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
+import { AuthProvider } from '@/lib/firebase/auth';
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -34,11 +35,13 @@ export default async function RootLayout({
     <html lang={locale}>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} style={{ background: '#0a0a1a' }}>
         <NextIntlClientProvider messages={messages}>
-          <Navbar />
-          <main className="pt-16 min-h-screen">
-            {children}
-          </main>
-          <Footer />
+          <AuthProvider>
+            <Navbar />
+            <main className="pt-16 min-h-screen">
+              {children}
+            </main>
+            <Footer />
+          </AuthProvider>
         </NextIntlClientProvider>
       </body>
     </html>
