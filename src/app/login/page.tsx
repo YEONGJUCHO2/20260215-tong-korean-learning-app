@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth';
-import { Mail, Lock, Eye, EyeOff, Chrome } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Chrome, ArrowLeft } from 'lucide-react';
 
 function LoginForm() {
     const router = useRouter();
@@ -36,9 +36,9 @@ function LoginForm() {
             console.error('Login error:', err);
             const message = err instanceof Error ? err.message : 'Login failed';
             if (message.includes('invalid-credential') || message.includes('user-not-found') || message.includes('wrong-password')) {
-                setError('Invalid email or password');
+                setError('이메일 또는 비밀번호가 올바르지 않습니다.');
             } else if (message.includes('too-many-requests')) {
-                setError('Too many attempts. Please try again later.');
+                setError('너무 많은 시도가 있었습니다. 잠시 후 다시 시도해주세요.');
             } else {
                 setError(message);
             }
@@ -57,9 +57,9 @@ function LoginForm() {
             console.error('Google login error:', err);
             const message = err instanceof Error ? err.message : 'Google login failed';
             if (message.includes('popup-closed-by-user')) {
-                setError('Popup was closed. Please try again.');
+                setError('로그인 창이 닫혔습니다. 다시 시도해주세요.');
             } else if (message.includes('popup-blocked')) {
-                setError('Popup was blocked. Please allow popups for this site.');
+                setError('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
             } else {
                 setError(message);
             }
@@ -69,57 +69,96 @@ function LoginForm() {
     };
 
     return (
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-md animate-fade-in-up px-4">
             <div className="text-center mb-8">
-                <Link href="/" className="inline-block">
-                    <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-2xl font-bold" style={{ background: 'linear-gradient(135deg, #6C5CE7, #A29BFE)' }}>통</div>
+                <Link href="/" className="inline-block transition-transform hover:scale-105">
+                    <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-white text-3xl font-bold bg-gradient-to-tr from-violet-600 to-fuchsia-600 shadow-xl shadow-purple-500/30">
+                        통
+                    </div>
                 </Link>
-                <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-                <p className="text-gray-400">다시 만나서 반가워요! 🎉</p>
+                <h1 className="text-3xl font-extrabold text-gray-900 mb-2">Welcome Back</h1>
+                <p className="text-gray-500">다시 만나서 반가워요! 🎉</p>
             </div>
 
-            <div className="rounded-2xl p-8" style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(20px)', border: '1px solid rgba(255,255,255,0.1)' }}>
-                <button onClick={handleGoogleLogin} disabled={loading} className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl font-medium transition-all hover:opacity-90 disabled:opacity-50 mb-6" style={{ background: 'rgba(255,255,255,0.1)', color: 'white', border: '1px solid rgba(255,255,255,0.15)' }}>
-                    <Chrome size={20} /> Continue with Google
+            <div className="w-full">
+                <button
+                    onClick={handleGoogleLogin}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl font-medium transition-all hover:bg-gray-50 border border-gray-200 text-gray-700 disabled:opacity-50 mb-6 group bg-white"
+                >
+                    <Chrome size={20} className="text-gray-500 group-hover:text-blue-500 transition-colors" /> Continue with Google
                 </button>
 
                 <div className="flex items-center gap-4 mb-6">
-                    <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
-                    <span className="text-gray-500 text-sm">or</span>
-                    <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.1)' }} />
+                    <div className="flex-1 h-px bg-gray-200" />
+                    <span className="text-gray-400 text-sm font-medium">or</span>
+                    <div className="flex-1 h-px bg-gray-200" />
                 </div>
 
                 <form onSubmit={handleEmailLogin} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1.5">Email</label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="your@email.com" className="w-full pl-10 pr-4 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} required />
+                        <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">Email</label>
+                        <div className="relative group">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-purple-500 transition-colors" size={18} />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="your@email.com"
+                                className="w-full pl-11 pr-4 py-3.5 rounded-xl bg-gray-50 text-gray-900 placeholder-gray-400 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium"
+                                required
+                            />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                            <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="w-full pl-10 pr-12 py-3 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500 transition" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.1)' }} required />
-                            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300">
+                        <label className="block text-sm font-bold text-gray-700 mb-1.5 ml-1">Password</label>
+                        <div className="relative group">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-purple-500 transition-colors" size={18} />
+                            <input
+                                type={showPassword ? 'text' : 'password'}
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full pl-11 pr-12 py-3.5 rounded-xl bg-gray-50 text-gray-900 placeholder-gray-400 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 transition-all font-medium"
+                                required
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </button>
                         </div>
                     </div>
-                    {error && <div className="text-red-400 text-sm bg-red-400/10 rounded-lg p-3">{error}</div>}
-                    <button type="submit" disabled={loading} className="w-full py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #6C5CE7, #A29BFE)' }}>
+
+                    {error && (
+                        <div className="text-red-500 text-sm bg-red-50 border border-red-100 rounded-xl p-3 flex items-start gap-2">
+                            <span className="mt-0.5">⚠️</span> {error}
+                        </div>
+                    )}
+
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="w-full py-4 rounded-xl font-bold text-white transition-all hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/30 hover:shadow-purple-500/40 transform hover:-translate-y-0.5 bg-purple-600"
+                    >
                         {loading ? 'Logging in...' : 'Log In'}
                     </button>
                 </form>
-                <div className="mt-4 text-center text-sm text-gray-400">
-                    <Link href="/forgot-password" className="text-purple-400 hover:text-purple-300 transition">Forgot password?</Link>
+
+                <div className="mt-6 text-center text-sm">
+                    <Link href="/forgot-password" className="text-purple-600 hover:text-purple-700 font-semibold transition hover:underline">
+                        Forgot password?
+                    </Link>
                 </div>
             </div>
 
-            <p className="text-center text-gray-400 mt-6 text-sm">
+            <p className="text-center text-gray-500 mt-8 text-sm font-medium">
                 Don&apos;t have an account?{' '}
-                <Link href="/signup" className="text-purple-400 hover:text-purple-300 font-medium transition">Sign Up Free</Link>
+                <Link href="/signup" className="text-purple-600 hover:text-purple-700 font-bold transition hover:underline">
+                    Sign Up Free
+                </Link>
             </p>
         </div>
     );
@@ -127,8 +166,8 @@ function LoginForm() {
 
 export default function LoginPage() {
     return (
-        <div className="min-h-screen flex items-center justify-center px-4" style={{ background: 'linear-gradient(135deg, #0a0a1a 0%, #1a1040 50%, #0a0a1a 100%)' }}>
-            <Suspense fallback={<div className="text-gray-400">Loading...</div>}>
+        <div className="min-h-screen flex items-center justify-center bg-white">
+            <Suspense fallback={<div className="text-purple-600 font-medium">Loading...</div>}>
                 <LoginForm />
             </Suspense>
         </div>

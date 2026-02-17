@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit } from "next/font/google"; // Modern sans-serif font
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getMessages } from 'next-intl/server';
 import { AuthProvider } from '@/lib/firebase/auth';
@@ -7,14 +7,10 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const outfit = Outfit({
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  variable: "--font-outfit",
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -32,15 +28,26 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} style={{ background: '#0a0a1a' }}>
+    <html lang={locale} className={outfit.variable}>
+      <body className="font-outfit antialiased min-h-screen text-gray-900 relative overflow-x-hidden selection:bg-purple-200 selection:text-purple-900">
+
+        {/* Global Background Orbs - Stitch Style (Light Mode) */}
+        <div className="fixed inset-0 -z-50 pointer-events-none overflow-hidden">
+          <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] bg-purple-200/40 rounded-full blur-[120px] animate-orb opacity-60" />
+          <div className="absolute bottom-[10%] right-[-5%] w-[500px] h-[500px] bg-pink-200/40 rounded-full blur-[100px] animate-orb [animation-delay:-5s] opacity-60" />
+          <div className="absolute top-[30%] left-[40%] w-[400px] h-[400px] bg-blue-100/50 rounded-full blur-[80px] animate-orb [animation-delay:-10s] opacity-50" />
+        </div>
+
         <NextIntlClientProvider messages={messages}>
           <AuthProvider>
-            <Navbar />
-            <main className="pt-16 min-h-screen">
-              {children}
-            </main>
-            <Footer />
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <main className="flex-grow pt-24 px-4 sm:px-6 lg:px-8 container-width relative z-10">
+                {children}
+              </main>
+              {/* Footer is temporarily commented out or needs styling update */}
+              {/* <Footer /> */}
+            </div>
           </AuthProvider>
         </NextIntlClientProvider>
       </body>

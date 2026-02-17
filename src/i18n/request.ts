@@ -10,12 +10,20 @@ import ko from '../../messages/ko.json';
 
 const messagesMap: Record<string, typeof en> = { en, ko };
 
-export default getRequestConfig(async ({ requestLocale }) => {
-    const locale = await requestLocale;
-    const resolvedLocale = locales.includes(locale as Locale) ? (locale as string) : defaultLocale;
+import { cookies } from 'next/headers';
+
+export default getRequestConfig(async () => {
+    // Read locale from cookies
+    const cookieStore = await cookies();
+    const cookieLocale = cookieStore.get('NEXT_LOCALE')?.value;
+
+    // Validate locale, fallback to default
+    const locale = (cookieLocale && locales.includes(cookieLocale as Locale))
+        ? cookieLocale
+        : defaultLocale;
 
     return {
-        locale: resolvedLocale,
-        messages: messagesMap[resolvedLocale] ?? en,
+        locale,
+        messages: messagesMap[locale] ?? en,
     };
 });

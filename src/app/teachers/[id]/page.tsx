@@ -34,7 +34,7 @@ const REVIEW_SAMPLES = [
 function generateCalendarDays(year: number, month: number) {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days: (number | null)[] = [];
+    const days: (string | number | null)[] = []; // Changed type to allow string for days
     for (let i = 0; i < firstDay; i++) days.push(null);
     for (let i = 1; i <= daysInMonth; i++) days.push(i);
     return days;
@@ -54,11 +54,11 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
 
     if (!teacher) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0a1a' }}>
+            <div className="min-h-screen flex items-center justify-center bg-[#F5F6FA]">
                 <div className="text-center">
                     <div className="text-5xl mb-4">🔍</div>
-                    <h2 className="text-xl font-bold text-white mb-2">Teacher not found</h2>
-                    <Link href="/teachers" className="text-purple-400 hover:text-purple-300 transition">← Back to teachers</Link>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Teacher not found</h2>
+                    <Link href="/teachers" className="text-purple-600 hover:text-purple-700 transition font-medium">← Back to teachers</Link>
                 </div>
             </div>
         );
@@ -77,80 +77,87 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
     const durationData = DURATIONS.find(d => d.min === selectedDuration) || DURATIONS[2];
 
     return (
-        <div className="min-h-screen px-4 py-8" style={{ background: 'linear-gradient(180deg, #0d0d2b 0%, #0a0a1a 100%)' }}>
-            <div className="max-w-6xl mx-auto">
+        <div className="min-h-screen px-4 py-8 bg-white relative">
+
+            <div className="max-w-6xl mx-auto relative z-10">
                 {/* Back */}
-                <Link href="/teachers" className="inline-flex items-center gap-2 text-gray-400 hover:text-white text-sm mb-6 transition">
-                    <ArrowLeft size={16} /> Back to teachers
+                <Link href="/teachers" className="inline-flex items-center gap-2 text-gray-500 hover:text-purple-600 text-sm mb-6 transition font-medium group">
+                    <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> Back to teachers
                 </Link>
 
-                <div className="grid lg:grid-cols-3 gap-6">
+                <div className="grid lg:grid-cols-3 gap-8">
                     {/* Left: Teacher Info */}
                     <div className="lg:col-span-1 space-y-6">
                         {/* Profile Card */}
-                        <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <div className="bg-white rounded-3xl p-6 border border-gray-100">
                             <div className="text-center mb-6">
-                                <div className="w-24 h-24 rounded-2xl mx-auto mb-4 flex items-center justify-center text-5xl" style={{ background: 'linear-gradient(135deg, rgba(108,92,231,0.2), rgba(162,155,254,0.1))' }}>
+                                <div className="w-24 h-24 rounded-2xl mx-auto mb-4 flex items-center justify-center text-5xl bg-gradient-to-tr from-purple-100 to-indigo-50 shadow-inner">
                                     {teacher.avatar}
                                 </div>
-                                <h1 className="text-2xl font-bold text-white">{teacher.name}</h1>
+                                <h1 className="text-2xl font-bold text-gray-900">{teacher.name}</h1>
                                 <div className="flex items-center justify-center gap-2 mt-2">
                                     <Star size={16} className="text-yellow-400 fill-yellow-400" />
-                                    <span className="text-white font-medium">{teacher.rating}</span>
-                                    <span className="text-gray-500 text-sm">({teacher.reviews} reviews)</span>
+                                    <span className="text-gray-900 font-bold">{teacher.rating}</span>
+                                    <span className="text-gray-400 text-sm">({teacher.reviews} reviews)</span>
                                 </div>
                             </div>
 
-                            <div className="space-y-3 text-sm">
-                                <div className="flex justify-between text-gray-400"><span>🎓 Level</span><span className="text-white">{teacher.level}</span></div>
-                                <div className="flex justify-between text-gray-400"><span>📚 Lessons</span><span className="text-white">{teacher.lessons}</span></div>
-                                <div className="flex justify-between text-gray-400"><span>👥 Students</span><span className="text-white">{teacher.students}</span></div>
-                                <div className="flex justify-between text-gray-400"><span>⚡ Response</span><span className="text-white">{teacher.responseTime}</span></div>
-                                <div className="flex justify-between text-gray-400"><span>🌐 Languages</span><span className="text-white">{teacher.languages.join(', ')}</span></div>
+                            <div className="space-y-3 text-sm border-t border-gray-100 pt-5">
+                                <div className="flex justify-between text-gray-500"><span>🎓 Level</span><span className="text-gray-900 font-medium">{teacher.level}</span></div>
+                                <div className="flex justify-between text-gray-500"><span>📚 Lessons</span><span className="text-gray-900 font-medium">{teacher.lessons}</span></div>
+                                <div className="flex justify-between text-gray-500"><span>👥 Students</span><span className="text-gray-900 font-medium">{teacher.students}</span></div>
+                                <div className="flex justify-between text-gray-500"><span>⚡ Response</span><span className="text-gray-900 font-medium">{teacher.responseTime}</span></div>
+                                <div className="flex justify-between text-gray-500"><span>🌐 Languages</span><span className="text-gray-900 font-medium">{teacher.languages.join(', ')}</span></div>
                             </div>
 
-                            <div className="flex gap-2 mt-5">
-                                <Link href="/messages" className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium text-gray-300 transition hover:bg-white/5" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <MessageCircle size={16} /> Message
+                            <div className="flex gap-2 mt-6">
+                                <Link href="/messages" className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold text-purple-600 bg-purple-50 hover:bg-purple-100 transition border border-purple-100">
+                                    <MessageCircle size={18} /> Message
                                 </Link>
-                                <button className="p-2.5 rounded-xl text-gray-400 hover:text-pink-400 transition" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
-                                    <Heart size={18} />
+                                <button className="p-3 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition border border-gray-100">
+                                    <Heart size={20} />
                                 </button>
                             </div>
                         </div>
 
                         {/* About */}
-                        <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <h3 className="text-lg font-semibold text-white mb-3">About</h3>
-                            <p className="text-gray-400 text-sm leading-relaxed">{teacher.about}</p>
+                        <div className="bg-white rounded-3xl p-6 border border-gray-100">
+                            <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <BookOpen size={18} className="text-purple-500" /> About
+                            </h3>
+                            <p className="text-gray-600 text-sm leading-relaxed">{teacher.about}</p>
                         </div>
 
                         {/* Specialties */}
-                        <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <h3 className="text-lg font-semibold text-white mb-3">Specialties</h3>
+                        <div className="bg-white rounded-3xl p-6 border border-gray-100">
+                            <h3 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                <Star size={18} className="text-purple-500" /> Specialties
+                            </h3>
                             <div className="flex flex-wrap gap-2">
                                 {teacher.specialties.map(s => (
-                                    <span key={s} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: 'rgba(108,92,231,0.15)', color: '#A29BFE' }}>{s}</span>
+                                    <span key={s} className="px-3 py-1.5 rounded-lg text-xs font-bold bg-purple-50 text-purple-600 border border-purple-100">
+                                        {s}
+                                    </span>
                                 ))}
                             </div>
                         </div>
 
                         {/* Reviews */}
-                        <div className="rounded-2xl p-6" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <h3 className="text-lg font-semibold text-white mb-4">Reviews</h3>
+                        <div className="bg-white rounded-3xl p-6 border border-gray-100">
+                            <h3 className="text-lg font-bold text-gray-900 mb-4">Reviews</h3>
                             <div className="space-y-4">
                                 {REVIEW_SAMPLES.map((r, i) => (
-                                    <div key={i} className="pb-4" style={{ borderBottom: i < REVIEW_SAMPLES.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                                    <div key={i} className="pb-4 border-b border-gray-50 last:border-0 last:pb-0">
                                         <div className="flex items-center justify-between mb-1">
-                                            <span className="text-white text-sm font-medium">{r.name}</span>
-                                            <span className="text-gray-500 text-xs">{r.date}</span>
+                                            <span className="text-gray-900 text-sm font-bold">{r.name}</span>
+                                            <span className="text-gray-400 text-xs">{r.date}</span>
                                         </div>
                                         <div className="flex gap-0.5 mb-2">
                                             {Array.from({ length: 5 }).map((_, j) => (
-                                                <Star key={j} size={12} className={j < r.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-600'} />
+                                                <Star key={j} size={12} className={j < r.rating ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'} />
                                             ))}
                                         </div>
-                                        <p className="text-gray-400 text-sm">{r.text}</p>
+                                        <p className="text-gray-600 text-sm leading-snug">{r.text}</p>
                                     </div>
                                 ))}
                             </div>
@@ -159,30 +166,35 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
 
                     {/* Right: Booking */}
                     <div className="lg:col-span-2">
-                        <div className="rounded-2xl p-6 sticky top-24" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-                                <Calendar size={20} className="text-purple-400" />
+                        <div className="bg-white rounded-3xl p-8 border border-gray-100 sticky top-24">
+                            <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                                <span className="bg-purple-100 p-2 rounded-lg text-purple-600">
+                                    <Calendar size={20} />
+                                </span>
                                 Book a Lesson
                             </h2>
 
                             {bookingStep === 1 ? (
-                                <div className="space-y-6">
+                                <div className="space-y-8">
                                     {/* Duration */}
                                     <div>
-                                        <label className="text-sm font-medium text-gray-300 mb-3 block">Lesson Duration</label>
-                                        <div className="grid grid-cols-4 gap-2">
+                                        <label className="text-sm font-bold text-gray-700 mb-3 block">Lesson Duration</label>
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                             {DURATIONS.map(d => (
                                                 <button
                                                     key={d.min}
                                                     onClick={() => setSelectedDuration(d.min)}
-                                                    className="p-3 rounded-xl text-center transition-all"
-                                                    style={{
-                                                        background: selectedDuration === d.min ? 'rgba(108,92,231,0.2)' : 'rgba(255,255,255,0.04)',
-                                                        border: `1px solid ${selectedDuration === d.min ? 'rgba(108,92,231,0.5)' : 'rgba(255,255,255,0.06)'}`,
-                                                    }}
+                                                    className={`p-4 rounded-2xl text-center transition-all border-2 ${selectedDuration === d.min
+                                                        ? 'border-purple-600 bg-purple-50 ring-4 ring-purple-100'
+                                                        : 'border-gray-100 bg-white hover:border-purple-200 hover:bg-gray-50'
+                                                        }`}
                                                 >
-                                                    <div className="text-white font-bold">{d.label}</div>
-                                                    <div className="text-gray-500 text-xs">${d.price}</div>
+                                                    <div className={`font-bold text-lg mb-1 ${selectedDuration === d.min ? 'text-purple-700' : 'text-gray-700'}`}>
+                                                        {d.label}
+                                                    </div>
+                                                    <div className={`text-sm ${selectedDuration === d.min ? 'text-purple-600' : 'text-gray-500'}`}>
+                                                        ${d.price}
+                                                    </div>
                                                 </button>
                                             ))}
                                         </div>
@@ -191,36 +203,41 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
                                     {/* Calendar */}
                                     <div>
                                         <div className="flex items-center justify-between mb-4">
-                                            <button onClick={() => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); }} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 transition">
-                                                <ChevronLeft size={18} />
+                                            <button
+                                                onClick={() => { if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(y => y - 1); } else setCurrentMonth(m => m - 1); }}
+                                                className="p-2 rounded-xl hover:bg-gray-100 text-gray-600 transition"
+                                            >
+                                                <ChevronLeft size={20} />
                                             </button>
-                                            <span className="text-white font-medium">{monthNames[currentMonth]} {currentYear}</span>
-                                            <button onClick={() => { if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); } else setCurrentMonth(m => m + 1); }} className="p-2 rounded-lg hover:bg-white/5 text-gray-400 transition">
-                                                <ChevronRight size={18} />
+                                            <span className="text-gray-900 font-bold text-lg">{monthNames[currentMonth]} {currentYear}</span>
+                                            <button
+                                                onClick={() => { if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1); } else setCurrentMonth(m => m + 1); }}
+                                                className="p-2 rounded-xl hover:bg-gray-100 text-gray-600 transition"
+                                            >
+                                                <ChevronRight size={20} />
                                             </button>
                                         </div>
                                         <div className="grid grid-cols-7 gap-1 mb-2">
                                             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                                                <div key={d} className="text-center text-gray-500 text-xs py-2">{d}</div>
+                                                <div key={d} className="text-center text-gray-400 text-xs font-bold py-2 uppercase tracking-wide">{d}</div>
                                             ))}
                                         </div>
-                                        <div className="grid grid-cols-7 gap-1">
+                                        <div className="grid grid-cols-7 gap-2">
                                             {calendarDays.map((day, i) => (
                                                 <button
                                                     key={i}
-                                                    disabled={!day || !isAvailable(day)}
-                                                    onClick={() => day && setSelectedDate(day)}
-                                                    className={`aspect-square rounded-lg text-sm font-medium transition-all ${!day ? 'invisible' :
-                                                            selectedDate === day ? 'text-white' :
-                                                                isAvailable(day) ? 'text-gray-300 hover:bg-white/5' :
-                                                                    'text-gray-700 cursor-not-allowed'
+                                                    disabled={!day || (typeof day === 'number' && !isAvailable(day))}
+                                                    onClick={() => typeof day === 'number' && setSelectedDate(day)}
+                                                    className={`aspect-square rounded-xl text-sm font-bold transition-all relative ${!day ? 'invisible' :
+                                                        selectedDate === day ? 'text-white bg-purple-600 shadow-md transform scale-105' :
+                                                            (typeof day === 'number' && isAvailable(day)) ? 'text-gray-700 hover:bg-purple-50 hover:text-purple-600' :
+                                                                'text-gray-300 cursor-not-allowed'
                                                         }`}
-                                                    style={{
-                                                        background: selectedDate === day ? 'linear-gradient(135deg, #6C5CE7, #A29BFE)' :
-                                                            day && isAvailable(day) ? 'rgba(255,255,255,0.03)' : 'transparent',
-                                                    }}
                                                 >
                                                     {day}
+                                                    {typeof day === 'number' && isAvailable(day) && selectedDate !== day && (
+                                                        <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-purple-400 rounded-full"></span>
+                                                    )}
                                                 </button>
                                             ))}
                                         </div>
@@ -228,21 +245,19 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
 
                                     {/* Time Slots */}
                                     {selectedDate && (
-                                        <div>
-                                            <label className="text-sm font-medium text-gray-300 mb-3 block">
+                                        <div className="animate-fade-in-up">
+                                            <label className="text-sm font-bold text-gray-700 mb-3 block">
                                                 Available Times — {monthNames[currentMonth]} {selectedDate}
                                             </label>
-                                            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                                            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
                                                 {TIME_SLOTS.map(time => (
                                                     <button
                                                         key={time}
                                                         onClick={() => setSelectedTime(time)}
-                                                        className="py-2.5 rounded-lg text-sm font-medium transition-all"
-                                                        style={{
-                                                            background: selectedTime === time ? 'linear-gradient(135deg, #6C5CE7, #A29BFE)' : 'rgba(255,255,255,0.04)',
-                                                            border: `1px solid ${selectedTime === time ? 'transparent' : 'rgba(255,255,255,0.06)'}`,
-                                                            color: selectedTime === time ? 'white' : '#9ca3af',
-                                                        }}
+                                                        className={`py-3 rounded-xl text-sm font-semibold transition-all border ${selectedTime === time
+                                                            ? 'bg-gray-900 text-white border-gray-900 shadow-lg transform -translate-y-0.5'
+                                                            : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:text-purple-600'
+                                                            }`}
                                                     >
                                                         {time}
                                                     </button>
@@ -255,42 +270,43 @@ export default function TeacherDetailPage({ params }: { params: Promise<{ id: st
                                     <button
                                         disabled={!selectedDate || !selectedTime}
                                         onClick={() => setBookingStep(2)}
-                                        className="w-full py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                                        style={{ background: 'linear-gradient(135deg, #6C5CE7, #A29BFE)' }}
+                                        className="w-full py-4 rounded-2xl font-bold text-white transition-all hover:bg-purple-700 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-purple-500/30 hover:shadow-purple-500/40 bg-purple-600 text-lg mt-4"
                                     >
                                         Continue to Confirm
                                     </button>
                                 </div>
                             ) : (
                                 /* Confirmation Step */
-                                <div className="space-y-6">
-                                    <button onClick={() => setBookingStep(1)} className="text-gray-400 hover:text-white text-sm transition">← Change time</button>
+                                <div className="space-y-8 animate-fade-in-up">
+                                    <button onClick={() => setBookingStep(1)} className="text-gray-500 hover:text-gray-900 text-sm transition font-medium flex items-center gap-1">
+                                        <ArrowLeft size={14} /> Change time
+                                    </button>
 
-                                    <div className="rounded-xl p-5 space-y-4" style={{ background: 'rgba(108,92,231,0.1)', border: '1px solid rgba(108,92,231,0.15)' }}>
-                                        <h3 className="text-white font-semibold">Booking Summary</h3>
-                                        <div className="space-y-2 text-sm">
-                                            <div className="flex justify-between text-gray-400"><span>Teacher</span><span className="text-white">{teacher.name}</span></div>
-                                            <div className="flex justify-between text-gray-400"><span>Date</span><span className="text-white">{monthNames[currentMonth]} {selectedDate}, {currentYear}</span></div>
-                                            <div className="flex justify-between text-gray-400"><span>Time</span><span className="text-white">{selectedTime}</span></div>
-                                            <div className="flex justify-between text-gray-400"><span>Duration</span><span className="text-white">{durationData.label}</span></div>
-                                            <div className="flex justify-between text-gray-400 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}><span className="font-medium">Total</span><span className="text-white font-bold text-lg">${durationData.price}</span></div>
+                                    <div className="bg-gray-50 rounded-2xl p-6 border border-gray-100 space-y-4">
+                                        <h3 className="text-gray-900 font-bold text-lg">Booking Summary</h3>
+                                        <div className="space-y-3 text-sm">
+                                            <div className="flex justify-between items-center"><span className="text-gray-500">Teacher</span><span className="text-gray-900 font-semibold">{teacher.name}</span></div>
+                                            <div className="flex justify-between items-center"><span className="text-gray-500">Date</span><span className="text-gray-900 font-semibold">{monthNames[currentMonth]} {selectedDate}, {currentYear}</span></div>
+                                            <div className="flex justify-between items-center"><span className="text-gray-500">Time</span><span className="text-gray-900 font-semibold">{selectedTime}</span></div>
+                                            <div className="flex justify-between items-center"><span className="text-gray-500">Duration</span><span className="text-gray-900 font-semibold">{durationData.label}</span></div>
+                                            <div className="flex justify-between items-center pt-3 border-t border-gray-200"><span className="font-bold text-gray-900">Total</span><span className="text-purple-600 font-bold text-xl">${durationData.price}</span></div>
                                         </div>
                                     </div>
 
-                                    <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: 'rgba(0,210,211,0.1)', border: '1px solid rgba(0,210,211,0.15)' }}>
-                                        <Video size={18} className="text-cyan-400 flex-shrink-0" />
-                                        <p className="text-gray-300 text-sm">A Google Meet link will be auto-generated and shared with you and the teacher.</p>
+                                    <div className="bg-blue-50 rounded-2xl p-4 flex items-start gap-3 border border-blue-100">
+                                        <Video size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
+                                        <p className="text-blue-700 text-sm font-medium leading-relaxed">A Google Meet link will be auto-generated and shared with you and the teacher via email and dashboard.</p>
                                     </div>
 
                                     <button
-                                        className="w-full py-3.5 rounded-xl font-semibold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2"
-                                        style={{ background: 'linear-gradient(135deg, #6C5CE7, #FF6B9D)' }}
+                                        className="w-full py-4 rounded-2xl font-bold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2 shadow-xl shadow-purple-500/20 hover:shadow-purple-500/30 transform hover:-translate-y-0.5"
+                                        style={{ background: 'linear-gradient(135deg, #6C5CE7, #8e44ad)' }}
                                         onClick={() => alert('Booking confirmed! 🎉 (Demo)')}
                                     >
-                                        <Check size={18} /> Confirm Booking — ${durationData.price}
+                                        <Check size={20} /> Confirm Booking — ${durationData.price}
                                     </button>
 
-                                    <p className="text-gray-500 text-xs text-center">Free cancellation up to 2 hours before the lesson</p>
+                                    <p className="text-gray-400 text-xs text-center font-medium">Free cancellation up to 2 hours before the lesson</p>
                                 </div>
                             )}
                         </div>
