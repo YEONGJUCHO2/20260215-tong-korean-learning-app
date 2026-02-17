@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth';
@@ -10,7 +10,7 @@ function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const redirect = searchParams.get('redirect') || '/dashboard';
-    const { signInWithEmail, signInWithGoogle } = useAuth();
+    const { user, signInWithEmail, signInWithGoogle } = useAuth();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -18,28 +18,52 @@ function LoginForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    // Auto-redirect if already logged in
+    useEffect(() => {
+        if (user) {
+            router.push(redirect);
+        }
+    }, [user, router, redirect]);
+
     const handleEmailLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError('');
         try {
             await signInWithEmail(email, password);
-            router.push(redirect);
+            // Auth state listener will detect login and redirect via useEffect
         } catch (err: unknown) {
+            console.error('Login error:', err);
             const message = err instanceof Error ? err.message : 'Login failed';
-            setError(message.includes('invalid-credential') ? 'Invalid email or password' : message);
+            if (message.includes('invalid-credential') || message.includes('user-not-found') || message.includes('wrong-password')) {
+                setError('Invalid email or password');
+            } else if (message.includes('too-many-requests')) {
+                setError('Too many attempts. Please try again later.');
+            } else {
+                setError(message);
+            }
+        } finally {
             setLoading(false);
         }
     };
 
     const handleGoogleLogin = async () => {
         setLoading(true);
+        setError('');
         try {
             await signInWithGoogle();
-            router.push(redirect);
+            // Auth state listener will detect login and redirect via useEffect
         } catch (err: unknown) {
+            console.error('Google login error:', err);
             const message = err instanceof Error ? err.message : 'Google login failed';
-            setError(message);
+            if (message.includes('popup-closed-by-user')) {
+                setError('Popup was closed. Please try again.');
+            } else if (message.includes('popup-blocked')) {
+                setError('Popup was blocked. Please allow popups for this site.');
+            } else {
+                setError(message);
+            }
+        } finally {
             setLoading(false);
         }
     };

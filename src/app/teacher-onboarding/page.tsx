@@ -2,13 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/firebase/auth';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/config';
 import { ArrowRight, ArrowLeft, Upload, Plus, X, CheckCircle2, GraduationCap, Clock, Globe, BookOpen } from 'lucide-react';
 
 const SPECIALTIES = ['Conversation', 'K-POP', 'K-Drama', 'Business', 'TOPIK', 'Travel', 'Hangul Basics', 'Pronunciation', 'Gaming', 'Culture', 'Academic', 'Kids'];
 const TIMEZONES = ['Asia/Seoul (KST)', 'America/New_York (EST)', 'America/Los_Angeles (PST)', 'Europe/London (GMT)', 'Asia/Tokyo (JST)', 'Australia/Sydney (AEST)'];
 
 export default function TeacherOnboardingPage() {
+    const router = useRouter();
+    const { user } = useAuth();
     const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
         displayName: '', bio: '', experience: '', education: '',
         specialties: [] as string[], languages: ['Korean', 'English'],
@@ -33,6 +40,56 @@ export default function TeacherOnboardingPage() {
     const removeLanguage = (lang: string) => {
         if (lang === 'Korean') return;
         setForm(prev => ({ ...prev, languages: prev.languages.filter(l => l !== lang) }));
+    };
+
+    const handleSubmit = async () => {
+        if (!user) return;
+        setLoading(true);
+        try {
+            // 1. Update basic profile info
+            await updateDoc(doc(db, 'profiles', user.uid), {
+                displayName: form.displayName,
+                role: 'teacher', // Ensure role is teacher
+                onboardingCompleted: true,
+                updatedAt: new Date(),
+            });
+
+            // 2. Create teacher profile in 'teachers' collection
+            await setDoc(doc(db, 'teachers', user.uid), {
+                uid: user.uid,
+                displayName: form.displayName,
+                bio: form.bio,
+                experience: form.experience,
+                education: form.education,
+                specialties: form.specialties,
+                languages: form.languages,
+                timezone: form.timezone,
+                pricing: {
+                    min30: parseInt(form.price30),
+                    min50: parseInt(form.price50),
+                },
+                availability: {
+                    morning: form.availMorning,
+                    afternoon: form.availAfternoon,
+                    evening: form.availEvening,
+                    night: form.availNight,
+                },
+                introVideo: form.introVideo,
+                rating: 5.0, // Default starting rating
+                reviewCount: 0,
+                studentsCount: 0,
+                isOnline: true,
+                createdAt: new Date(),
+            });
+
+            console.log('Teacher profile created!');
+            router.push('/teacher-dashboard');
+        } catch (error) {
+            console.error('Error creating teacher profile:', error);
+            alert('Failed to save profile. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -253,9 +310,9 @@ export default function TeacherOnboardingPage() {
 
                         <div className="flex gap-3">
                             <button onClick={() => setStep(3)} className="flex-1 py-3 rounded-xl text-gray-400 font-medium transition hover:bg-white/5" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>Edit</button>
-                            <Link href="/teacher-dashboard" className="flex-1 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2 text-center" style={{ background: 'linear-gradient(135deg, #6C5CE7, #FF6B9D)' }}>
-                                <CheckCircle2 size={16} /> Go Live! 🚀
-                            </Link>
+                            <button onClick={handleSubmit} disabled={loading} className="flex-1 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 flex items-center justify-center gap-2 text-center disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #6C5CE7, #FF6B9D)' }}>
+                                {loading ? 'Saving...' : <><CheckCircle2 size={16} /> Go Live! 🚀</>}
+                            </button>
                         </div>
                     </div>
                 )}

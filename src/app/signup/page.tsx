@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/firebase/auth';
@@ -10,7 +10,7 @@ import { Mail, Lock, Eye, EyeOff, Chrome, User } from 'lucide-react';
 
 export default function SignupPage() {
     const router = useRouter();
-    const { signUpWithEmail, signInWithGoogle } = useAuth();
+    const { user, signUpWithEmail, signInWithGoogle } = useAuth();
     const [step, setStep] = useState(1);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
@@ -19,15 +19,33 @@ export default function SignupPage() {
     const [role, setRole] = useState<'student' | 'teacher' | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [googleSignedUp, setGoogleSignedUp] = useState(false);
+
+    // Auto-redirect when user is detected after signup
+    useEffect(() => {
+        if (user && googleSignedUp) {
+            router.push('/onboarding');
+        }
+    }, [user, googleSignedUp, router]);
 
     const handleGoogleSignup = async () => {
         setLoading(true);
+        setError('');
         try {
             await signInWithGoogle();
-            router.push('/onboarding');
+            setGoogleSignedUp(true);
+            // useEffect will handle redirect once user state updates
         } catch (err: unknown) {
+            console.error('Google signup error:', err);
             const message = err instanceof Error ? err.message : 'Google signup failed';
-            setError(message);
+            if (message.includes('popup-closed-by-user')) {
+                setError('Popup was closed. Please try again.');
+            } else if (message.includes('popup-blocked')) {
+                setError('Popup was blocked. Please allow popups for this site.');
+            } else {
+                setError(message);
+            }
+        } finally {
             setLoading(false);
         }
     };
@@ -49,8 +67,8 @@ export default function SignupPage() {
 
         try {
             await signUpWithEmail(email, password, name);
-            // Wait a moment for auth state to update and profile to be created
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Wait for auth state to update and profile to be created
+            await new Promise(resolve => setTimeout(resolve, 1500));
             // Update the role in the profile
             const { auth } = await import('@/lib/firebase/config');
             if (auth.currentUser) {
@@ -58,6 +76,7 @@ export default function SignupPage() {
             }
             router.push(role === 'teacher' ? '/teacher-onboarding' : '/onboarding');
         } catch (err: unknown) {
+            console.error('Signup error:', err);
             const message = err instanceof Error ? err.message : 'Signup failed';
             if (message.includes('email-already-in-use')) {
                 setError('This email is already registered. Try logging in instead.');
@@ -66,6 +85,7 @@ export default function SignupPage() {
             } else {
                 setError(message);
             }
+        } finally {
             setLoading(false);
         }
     };

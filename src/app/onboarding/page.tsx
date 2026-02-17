@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, ArrowRight, Check, ChevronRight } from 'lucide-react';
+import { useAuth } from '@/lib/firebase/auth'; // Firebase Auth
+import { doc, updateDoc } from 'firebase/firestore'; // Firestore utils
+import { db } from '@/lib/firebase/config'; // Firebase DB instance
+import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 
 const STEPS = [
     { id: 1, label: 'Basic Info', emoji: '👤' },
@@ -22,7 +25,9 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function OnboardingPage() {
     const router = useRouter();
+    const { user } = useAuth(); // Get current user
     const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         nationality: '',
         nativeLanguage: '',
@@ -38,7 +43,8 @@ export default function OnboardingPage() {
 
     const toggleSelection = (field: string, value: string) => {
         setFormData((prev) => {
-            const arr = prev[field as keyof typeof prev] as string[];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const arr = (prev as any)[field] as string[];
             return {
                 ...prev,
                 [field]: arr.includes(value)
@@ -48,10 +54,27 @@ export default function OnboardingPage() {
         });
     };
 
-    const handleComplete = () => {
-        // TODO: Supabase에 프로필 저장
-        console.log('Onboarding data:', formData);
-        router.push('/dashboard');
+    const handleComplete = async () => {
+        if (!user) return;
+        setLoading(true);
+
+        try {
+            // Update profile in Firestore
+            const userRef = doc(db, 'profiles', user.uid);
+            await updateDoc(userRef, {
+                ...formData,
+                onboardingCompleted: true,
+                updatedAt: new Date(),
+            });
+
+            console.log('Onboarding data saved:', formData);
+            router.push('/dashboard');
+        } catch (error) {
+            console.error('Error saving onboarding data:', error);
+            alert('Failed to save profile. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -75,10 +98,10 @@ export default function OnboardingPage() {
                             <div key={s.id} className="flex flex-col items-center gap-1">
                                 <div
                                     className={`w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all ${s.id < step
-                                            ? 'text-white'
-                                            : s.id === step
-                                                ? 'text-white ring-2 ring-purple-500'
-                                                : 'text-gray-600'
+                                        ? 'text-white'
+                                        : s.id === step
+                                            ? 'text-white ring-2 ring-purple-500'
+                                            : 'text-gray-600'
                                         }`}
                                     style={{
                                         background:
@@ -367,10 +390,11 @@ export default function OnboardingPage() {
                         ) : (
                             <button
                                 onClick={handleComplete}
-                                className="flex items-center gap-2 px-8 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
+                                disabled={loading}
+                                className="flex items-center gap-2 px-8 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
                                 style={{ background: 'linear-gradient(135deg, #6C5CE7, #FF6B9D)' }}
                             >
-                                Start Learning 🚀
+                                {loading ? 'Saving...' : 'Start Learning 🚀'}
                             </button>
                         )}
                     </div>
